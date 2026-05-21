@@ -1,0 +1,8 @@
+# Local config holding the Google API key — never commit
+config.js
+
+# OS cruft
+.DS_Store
+
+# Local editor / tooling config
+.claude/

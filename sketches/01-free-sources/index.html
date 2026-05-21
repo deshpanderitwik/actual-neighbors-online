@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Actual Neighbors — a reading of the block</title>
+<script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+<style>
+  :root{
+    --bg:#0a0b0e; --panel:#121419; --line:#23262e; --text:#e9e7e2;
+    --dim:#787c85; --faint:#494c54;
+    --ground:#d8a652; --air:#c3ccd2; --water:#5fb4c6; --sky:#9b8fd9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(900px 600px at 78% -8%, #14161d 0%, transparent 60%),
+      radial-gradient(700px 500px at 8% 108%, #15131a 0%, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:ui-monospace,"SF Mono",Menlo,Monaco,"Cascadia Mono",monospace;
+    -webkit-font-smoothing:antialiased;
+    min-height:100%;
+    padding:clamp(20px,5vw,64px) clamp(16px,5vw,48px);
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+
+  /* ---- header ---- */
+  header.site{margin-bottom:34px}
+  .wordmark{
+    font-size:clamp(1.7rem,5vw,2.6rem);
+    font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  }
+  .wordmark .dot{color:var(--water)}
+  .tagline{
+    margin-top:10px;color:var(--dim);font-size:.82rem;
+    letter-spacing:.04em;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;
+  }
+  .tagline .sep{color:var(--faint)}
+  .clock{color:var(--text)}
+  .intro{
+    margin-top:18px;color:var(--dim);font-size:.9rem;line-height:1.6;
+    max-width:62ch;
+  }
+  .intro b{color:var(--text);font-weight:500}
+
+  /* ---- grid ---- */
+  .grid{
+    margin-top:30px;display:grid;gap:14px;
+    grid-template-columns:repeat(2,1fr);
+  }
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+
+  .panel{
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:16px;padding:22px 22px 20px;min-height:248px;
+    display:flex;flex-direction:column;
+  }
+  .panel header{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin-bottom:18px;
+  }
+  .tag{
+    font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;font-weight:600;
+  }
+  .panel[data-panel="ground"] .tag{color:var(--ground)}
+  .panel[data-panel="air"]    .tag{color:var(--air)}
+  .panel[data-panel="water"]  .tag{color:var(--water)}
+  .panel[data-panel="sky"]    .tag{color:var(--sky)}
+  .src{font-size:.66rem;letter-spacing:.1em;color:var(--faint);text-transform:uppercase}
+
+  .body{flex:1;display:flex;flex-direction:column}
+  .big{
+    font-size:clamp(2.1rem,5.5vw,3rem);font-weight:500;
+    letter-spacing:-.02em;line-height:1.05;
+  }
+  .sub{margin-top:8px;color:var(--dim);font-size:.84rem;line-height:1.5}
+  .rows{margin-top:auto;padding-top:18px;display:flex;flex-direction:column;gap:1px}
+  .rows .row{
+    display:flex;justify-content:space-between;gap:14px;
+    padding:7px 0;border-top:1px solid var(--line);font-size:.8rem;
+  }
+  .rows dt{color:var(--dim);white-space:nowrap}
+  .rows dd{text-align:right;color:var(--text)}
+
+  .loading{color:var(--faint);font-size:1.6rem;letter-spacing:.2em}
+  .err{display:flex;flex-direction:column;gap:6px;color:var(--faint)}
+  .err b{color:var(--dim);font-weight:500;font-size:.95rem}
+  .err span{font-size:.7rem;word-break:break-all}
+
+  .pulse{
+    display:inline-block;width:6px;height:6px;border-radius:50%;
+    background:var(--water);margin-right:6px;vertical-align:middle;
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+
+  /* ---- footer ---- */
+  footer.site{
+    margin-top:26px;display:flex;flex-wrap:wrap;gap:8px 18px;
+    justify-content:space-between;align-items:center;
+    color:var(--faint);font-size:.72rem;letter-spacing:.04em;
+  }
+  footer.site .sources{display:flex;flex-wrap:wrap;gap:4px 14px}
+  button.refresh{
+    background:transparent;border:1px solid var(--line);color:var(--dim);
+    font-family:inherit;font-size:.72rem;letter-spacing:.08em;
+    padding:6px 12px;border-radius:8px;cursor:pointer;
+  }
+  button.refresh:hover{border-color:var(--dim);color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <div class="wordmark">Actual<span class="dot">·</span>Neighbors</div>
+    <div class="tagline">
+      <span>electronic music</span><span class="sep">/</span>
+      <span>san francisco</span><span class="sep">/</span>
+      <span>made nightly</span><span class="sep">/</span>
+      <span class="clock" id="clock">--:--</span>
+    </div>
+    <p class="intro">
+      The album isn't finished. While we make it, here's <b>the block we're
+      making it on</b> — the ground beneath the studio, the air outside the
+      window, the bay down the hill, and the sky we keep our ritual by.
+      Four readings, pulled live.
+    </p>
+  </header>
+
+  <main class="grid">
+    <section class="panel" data-panel="ground">
+      <header><span class="tag">Ground</span><span class="src">USGS</span></header>
+      <div class="body" id="ground"><div class="loading">···</div></div>
+    </section>
+    <section class="panel" data-panel="air">
+      <header><span class="tag">Air</span><span class="src">NWS</span></header>
+      <div class="body" id="air"><div class="loading">···</div></div>
+    </section>
+    <section class="panel" data-panel="water">
+      <header><span class="tag">Water</span><span class="src">NOAA Tides</span></header>
+      <div class="body" id="water"><div class="loading">···</div></div>
+    </section>
+    <section class="panel" data-panel="sky">
+      <header><span class="tag">Sky</span><span class="src">computed</span></header>
+      <div class="body" id="sky"><div class="loading">···</div></div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="sources">
+      <span>data — USGS earthquakes</span>
+      <span>NWS weather.gov</span>
+      <span>NOAA tides &amp; currents</span>
+      <span>sun/moon computed locally</span>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center">
+      <span id="updated">—</span>
+      <button class="refresh" id="refresh">&#8635; refresh</button>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================
+   Actual Neighbors — sketch 01: free data sources
+   Placeholder coordinates: change SF.lat / SF.lon to the studio.
+   ============================================================ */
+const SF = { lat: 37.7749, lon: -122.4194 };   // <- set to your building
+const TIDE_STATION = "9414290";                // NOAA: San Francisco
+const QUAKE_RADIUS_KM = 100;
+
+/* ---- helpers ---- */
+async function fetchJSON(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error(r.status + " " + url);
+  return r.json();
+}
+function ago(ms){
+  const s = Math.max(0, Math.floor((Date.now()-ms)/1000));
+  if(s<60)  return s+"s ago";
+  const m=Math.floor(s/60); if(m<60) return m+"m ago";
+  const h=Math.floor(m/60); if(h<24) return h+"h ago";
+  const d=Math.floor(h/24); if(d<30) return d+"d ago";
+  return Math.floor(d/30)+"mo ago";
+}
+function dur(ms){
+  const m=Math.round(ms/60000), h=Math.floor(m/60);
+  return h>0 ? h+"h "+(m%60)+"m" : m+"m";
+}
+function haversine(la1,lo1,la2,lo2){
+  const R=6371, rad=x=>x*Math.PI/180;
+  const dLa=rad(la2-la1), dLo=rad(lo2-lo1);
+  const a=Math.sin(dLa/2)**2 + Math.cos(rad(la1))*Math.cos(rad(la2))*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function bearing(la1,lo1,la2,lo2){
+  const rad=x=>x*Math.PI/180, deg=x=>x*180/Math.PI;
+  const dLo=rad(lo2-lo1);
+  const y=Math.sin(dLo)*Math.cos(rad(la2));
+  const x=Math.cos(rad(la1))*Math.sin(rad(la2))
+        - Math.sin(rad(la1))*Math.cos(rad(la2))*Math.cos(dLo);
+  return (deg(Math.atan2(y,x))+360)%360;
+}
+function compass(b){ return ["N","NE","E","SE","S","SW","W","NW"][Math.round(b/45)%8]; }
+function sfTime(d){
+  return d.toLocaleTimeString("en-US",
+    {hour:"numeric",minute:"2-digit",timeZone:"America/Los_Angeles"});
+}
+function ymd(d){
+  return ""+d.getFullYear()
+    +String(d.getMonth()+1).padStart(2,"0")
+    +String(d.getDate()).padStart(2,"0");
+}
+
+/* render a panel: big readout + sub + label/value rows */
+function paint(id, big, sub, rows){
+  const html =
+    '<div class="big">'+big+'</div>'+
+    (sub ? '<div class="sub">'+sub+'</div>' : '')+
+    '<dl class="rows">'+ rows.map(r=>
+      '<div class="row"><dt>'+r[0]+'</dt><dd>'+r[1]+'</dd></div>'
+    ).join("") +'</dl>';
+  document.getElementById(id).innerHTML = html;
+}
+function fail(id, e){
+  document.getElementById(id).innerHTML =
+    '<div class="err"><b>source unavailable</b><span>'+
+    (e && e.message ? e.message : e)+'</span></div>';
+}
+
+/* ---- GROUND : USGS earthquakes ---- */
+async function ground(){
+  const start = new Date(Date.now()-30*864e5).toISOString().slice(0,10);
+  const url = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson"
+    +"&latitude="+SF.lat+"&longitude="+SF.lon
+    +"&maxradiuskm="+QUAKE_RADIUS_KM
+    +"&starttime="+start+"&orderby=time&limit=20";
+  const d = await fetchJSON(url);
+  const f = d.features;
+  if(!f.length){ paint("ground","quiet","No tremors in 30 days nearby",[]); return; }
+  const q = f[0];
+  const [lon,lat,depth] = q.geometry.coordinates;
+  const km = haversine(SF.lat,SF.lon,lat,lon);
+  const dir = compass(bearing(SF.lat,SF.lon,lat,lon));
+  const mag = q.properties.mag;
+  paint("ground",
+    mag!=null ? "M "+mag.toFixed(1) : "M ?",
+    "Last tremor felt " + ago(q.properties.time),
+    [
+      ["Where", km.toFixed(0)+" km "+dir+" — "+q.properties.place],
+      ["Depth", depth.toFixed(1)+" km down"],
+      ["This month", f.length+" tremors within "+QUAKE_RADIUS_KM+" km"],
+    ]);
+}
+
+/* ---- AIR : NWS current conditions + fog ----
+   The nearest station is whoever NWS lists first, but many city stations
+   don't report visibility/sky — so walk to the first that does (the airport
+   stations), since visibility is what makes the fog readout meaningful. */
+async function air(){
+  const pts = await fetchJSON("https://api.weather.gov/points/"+SF.lat+","+SF.lon);
+  const stations = await fetchJSON(pts.properties.observationStations);
+  let p=null, station="";
+  for(const st of stations.features.slice(0,6)){
+    let o;
+    try{ o = (await fetchJSON(st.id+"/observations/latest")).properties; }
+    catch(e){ continue; }
+    if(o.temperature.value!=null && o.visibility.value!=null){
+      p=o; station=st.properties.name; break;          // ideal: has fog signal
+    }
+    if(!p && o.temperature.value!=null){
+      p=o; station=st.properties.name;                 // fallback: temp only
+    }
+  }
+  if(!p) throw new Error("no nearby station reporting");
+
+  const c = p.temperature.value;
+  const tempF = c==null ? null : Math.round(c*9/5+32);
+  const vis = p.visibility.value;                       // metres
+  const hum = p.relativeHumidity.value;                 // percent
+  const windKmh = p.windSpeed.value;                    // km/h
+  const txt = (p.textDescription || "").toLowerCase();
+
+  let karl = "no Karl — clear-ish";
+  if(/fog|mist/.test(txt))                      karl = "Karl is here";
+  else if(vis!=null && vis<3000)                karl = "Karl is lurking";
+  else if(vis!=null && vis<10000 && hum>85)     karl = "Karl is nearby";
+
+  paint("air",
+    tempF!=null ? tempF+"&deg;F" : "—",
+    (p.textDescription || "conditions unknown")
+      + " — " + station.replace(/^San Francisco,?\s*/i,""),
+    [
+      ["Karl the Fog", karl],
+      ["Visibility", vis!=null ? (vis/1609).toFixed(1)+" mi" : "—"],
+      ["Humidity",   hum!=null ? Math.round(hum)+"%" : "—"],
+      ["Wind",       windKmh!=null ? Math.round(windKmh*0.621)+" mph" : "calm"],
+    ]);
+}
+
+/* ---- WATER : NOAA tides ---- */
+async function water(){
+  const base = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?"
+    +"application=actual-neighbors-site&station="+TIDE_STATION
+    +"&time_zone=lst_ldt&units=english&datum=MLLW&format=json";
+  const today = new Date(), tmrw = new Date(Date.now()+864e5);
+
+  const pred = await fetchJSON(base+"&product=predictions&interval=hilo"
+    +"&begin_date="+ymd(today)+"&end_date="+ymd(tmrw));
+  if(pred.error) throw new Error(pred.error.message);
+
+  let level = null;
+  try{
+    const wl = await fetchJSON(base+"&product=water_level&date=latest");
+    if(wl.data && wl.data.length) level = parseFloat(wl.data[0].v);
+  }catch(e){ /* current reading optional */ }
+
+  const now = new Date();
+  const upcoming = pred.predictions
+    .map(p=>({when:new Date(p.t.replace(" ","T")), v:parseFloat(p.v), type:p.type}))
+    .filter(p=>p.when>now);
+  const nextHigh = upcoming.find(p=>p.type==="H");
+  const nextLow  = upcoming.find(p=>p.type==="L");
+  const next = upcoming[0];
+  const trend = !next ? "—"
+    : next.type==="H" ? "rising toward high tide"
+    : "falling toward low tide";
+
+  paint("water",
+    level!=null ? level.toFixed(1)+" ft" : "the bay",
+    "The bay is "+trend,
+    [
+      ["Next high", nextHigh ? sfTime(nextHigh.when)+" — "+nextHigh.v.toFixed(1)+" ft" : "—"],
+      ["Next low",  nextLow  ? sfTime(nextLow.when)+" — "+nextLow.v.toFixed(1)+" ft"  : "—"],
+      ["Station", "San Francisco — NOAA "+TIDE_STATION],
+    ]);
+}
+
+/* ---- SKY : sun + moon, computed locally ---- */
+function sky(){
+  if(typeof SunCalc==="undefined") throw new Error("SunCalc failed to load");
+  const now = new Date();
+  const t = SunCalc.getTimes(now, SF.lat, SF.lon);
+  const moon = SunCalc.getMoonIllumination(now);
+
+  let light;
+  if(now<t.dawn || now>t.dusk)        light="Night";
+  else if(now<t.sunrise)              light="Dawn";
+  else if(now<t.goldenHourEnd)        light="Morning gold";
+  else if(now<t.goldenHour)           light="Daylight";
+  else if(now<t.sunset)               light="Evening gold";
+  else                                light="Dusk";
+
+  let big, sub;
+  if(now<t.sunset){
+    big = "in "+dur(t.sunset-now);
+    sub = "tonight's session begins at sundown — "+sfTime(t.sunset);
+  }else{
+    big = "underway";
+    sub = "tonight's session is on — sundown was "+sfTime(t.sunset);
+  }
+
+  const names=["New","Waxing crescent","First quarter","Waxing gibbous",
+               "Full","Waning gibbous","Last quarter","Waning crescent"];
+  const phase = names[Math.round(moon.phase*8)%8];
+  const daylight = dur(t.sunset-t.sunrise);
+
+  paint("sky", big, sub,
+    [
+      ["Light now", light],
+      ["Sunrise / set", sfTime(t.sunrise)+" — "+sfTime(t.sunset)],
+      ["Daylight", daylight],
+      ["Moon", phase+" — "+Math.round(moon.fraction*100)+"% lit"],
+    ]);
+}
+
+/* ---- orchestration ---- */
+function load(){
+  ground().catch(e=>fail("ground",e));
+  air().catch(e=>fail("air",e));
+  water().catch(e=>fail("water",e));
+  try{ sky(); }catch(e){ fail("sky",e); }
+  document.getElementById("updated").textContent =
+    "updated " + sfTime(new Date());
+}
+function tickClock(){
+  document.getElementById("clock").innerHTML =
+    '<span class="pulse"></span>' + sfTime(new Date()) + " in SF";
+}
+
+document.getElementById("refresh").addEventListener("click", load);
+tickClock(); setInterval(tickClock, 1000);
+load(); setInterval(load, 5*60*1000);
+</script>
+</body>
+</html>

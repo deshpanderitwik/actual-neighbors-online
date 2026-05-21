@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Actual Neighbors</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:#0a0a0b;
+    color:#f4f4f5;
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---- status indicator (top-left) ---- */
+  .status{
+    position:fixed;top:34px;left:40px;
+    display:flex;align-items:center;gap:14px;
+    font-size:21px;letter-spacing:.005em;
+  }
+  .dot{width:13px;height:13px;border-radius:50%;flex:none}
+  .status[data-state="live"] .dot{
+    background:#3ad84d;
+    box-shadow:0 0 12px rgba(58,216,77,.7);
+  }
+  .status[data-state="scheduled"] .dot{
+    background:transparent;
+    border:1.6px solid rgba(255,255,255,.5);
+  }
+
+  /* ---- stage + logo ---- */
+  .stage{
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:120px 32px;
+  }
+  .logo{width:clamp(260px,36vw,540px)}
+  .logo svg{
+    width:100%;height:auto;display:block;
+    filter:drop-shadow(0 0 7px rgba(255,255,255,.32))
+           drop-shadow(0 0 34px rgba(255,255,255,.10));
+  }
+</style>
+</head>
+<body>
+
+  <div class="status" data-state="live" id="status">
+    <span class="dot"></span>
+    <span class="label" id="status-label">Session in progress</span>
+  </div>
+
+  <main class="stage">
+    <div class="logo">
+      <!-- Actual Neighbors monogram — the band's exported logo (an-logo.svg),
+           inlined verbatim. Figma's white-background drop-shadow was dropped;
+           the glow for the black page is applied via CSS (.logo svg). -->
+      <svg viewBox="0 0 568 424" xmlns="http://www.w3.org/2000/svg"
+           role="img" aria-label="Actual Neighbors">
+        <path d="M295.428 223.419H40V40H295.428V223.419ZM62.8557 200.582H272.572V62.7942H62.8557V200.582Z" fill="white"/>
+        <path d="M528 384H272.572V200.582H528V384ZM295.428 361.206H505.144V223.418H295.428V361.206Z" fill="white"/>
+        <path d="M153.594 95.8567H182.901L222.247 167.562H198.323L191.189 154.781H144.837L137.958 167.562H113.18L153.594 95.8567ZM183.542 139.826L168.034 111.237L152.74 139.826H183.584H183.542Z" fill="white"/>
+        <path d="M351.008 256.438H385.826L429.358 310.931L428.803 256.438H449.48V328.144H414.363L371.471 274.205L372.027 328.144H351.008V256.438Z" fill="white"/>
+      </svg>
+    </div>
+  </main>
+
+<script>
+/* ============================================================
+   Actual Neighbors — sketch 02: session status
+   Two states: "live" (session in progress) and "scheduled".
+   State is hard-coded for now — switching logic comes later.
+   ============================================================ */
+const SESSION = {
+  state: "live",                          // "live" | "scheduled"
+  next:  "6pm PST, Friday, May 22",       // shown when state === "scheduled"
+};
+
+const status = document.getElementById("status");
+const label  = document.getElementById("status-label");
+
+status.dataset.state = SESSION.state;
+label.textContent = SESSION.state === "live"
+  ? "Session in progress"
+  : "Next session: " + SESSION.next;
+</script>
+</body>
+</html>

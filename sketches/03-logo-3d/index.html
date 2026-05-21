@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Actual Neighbors</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:#0a0a0b;color:#f4f4f5;overflow:hidden;
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  #scene{position:fixed;inset:0;z-index:0}
+  #scene canvas{display:block}
+
+  .status{
+    position:fixed;top:34px;left:40px;z-index:2;
+    display:flex;align-items:center;gap:14px;
+    font-size:21px;letter-spacing:.005em;
+  }
+  .dot{width:13px;height:13px;border-radius:50%;flex:none}
+  .status[data-state="live"] .dot{
+    background:#3ad84d;box-shadow:0 0 12px rgba(58,216,77,.7);
+  }
+  .status[data-state="scheduled"] .dot{
+    background:transparent;border:1.6px solid rgba(255,255,255,.5);
+  }
+
+</style>
+</head>
+<body>
+
+  <div class="status" data-state="scheduled" id="status">
+    <span class="dot"></span>
+    <span class="label" id="status-label">Checking schedule&hellip;</span>
+  </div>
+
+  <div id="scene"></div>
+
+  <script src="config.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+  import * as THREE        from "three";
+  import { SVGLoader }       from "three/addons/loaders/SVGLoader.js";
+  import { OrbitControls }   from "three/addons/controls/OrbitControls.js";
+  import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+  /* ---------- the logo, inlined so the sketch is self-contained ---------- */
+  const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 568 424">
+<path d="M295.428 223.419H40V40H295.428V223.419ZM62.8557 200.582H272.572V62.7942H62.8557V200.582Z"/>
+<path d="M528 384H272.572V200.582H528V384ZM295.428 361.206H505.144V223.418H295.428V361.206Z"/>
+<path d="M153.594 95.8567H182.901L222.247 167.562H198.323L191.189 154.781H144.837L137.958 167.562H113.18L153.594 95.8567ZM183.542 139.826L168.034 111.237L152.74 139.826H183.584H183.542Z"/>
+<path d="M351.008 256.438H385.826L429.358 310.931L428.803 256.438H449.48V328.144H414.363L371.471 274.205L372.027 328.144H351.008V256.438Z"/>
+</svg>`;
+
+  /* ---------- tunables ---------- */
+  const DEPTH = 34;     // extrusion depth of the logo
+  const SPIN  = 0.34;   // auto-rotation speed (radians / second)
+
+  /* ---------- renderer ---------- */
+  const mount = document.getElementById("scene");
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  mount.appendChild(renderer.domElement);
+
+  /* ---------- scene + camera ---------- */
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0a0b);
+
+  const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 1, 6000);
+  camera.position.set(0, 150, 900);
+
+  /* ---------- environment (gives the metal something to reflect) ---------- */
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+  /* ---------- lights: key + cool rim ---------- */
+  const key = new THREE.DirectionalLight(0xffffff, 2.7);
+  key.position.set(-280, 360, 480);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0x9bb2ff, 2.3);
+  rim.position.set(340, -180, -420);
+  scene.add(rim);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.12));
+
+  /* ---------- brushed-metal material ----------
+     A canvas of faint horizontal streaks drives the roughness map, which is
+     what reads as "brushed" rather than mirror-polished. */
+  function brushedMap(){
+    const c = document.createElement("canvas");
+    c.width = c.height = 512;
+    const g = c.getContext("2d");
+    g.fillStyle = "#cccccc";
+    g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 16000; i++){
+      const y = Math.random() * 512;
+      const x = Math.random() * 512;
+      const len = 30 + Math.random() * 280;
+      const v = (40 + Math.random() * 150) | 0;
+      g.strokeStyle = `rgba(${v},${v},${v},0.05)`;
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + len, y);
+      g.stroke();
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(4, 4);
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    return t;
+  }
+
+  const metal = new THREE.MeshPhysicalMaterial({
+    color: 0xccd0d6,
+    metalness: 1.0,
+    roughness: 0.6,
+    roughnessMap: brushedMap(),
+    envMapIntensity: 1.3,
+    anisotropy: 0.55,
+    side: THREE.DoubleSide,
+  });
+
+  /* ---------- build the extruded logo ----------
+     The two box frames overlap at one corner. Instead of extruding them
+     separately (which doubles up geometry there), their 2D union is defined
+     directly as a single outline + two holes. Everything is rectangles, so
+     no boolean/CSG library is needed — and it extrudes as ONE clean solid
+     with no internal seam. The A and N letters extrude into the same
+     geometry, so the whole mark is a single mesh. */
+  const paths = new SVGLoader().parse(LOGO_SVG).paths;
+
+  function boxUnionShape(){
+    const s = new THREE.Shape();
+    s.moveTo(40, 40);                  // union outline of the two box rectangles
+    s.lineTo(295.428, 40);
+    s.lineTo(295.428, 200.582);
+    s.lineTo(528, 200.582);
+    s.lineTo(528, 384);
+    s.lineTo(272.572, 384);
+    s.lineTo(272.572, 223.419);
+    s.lineTo(40, 223.419);
+    s.closePath();
+
+    const aHole = new THREE.Path();    // the A interior
+    aHole.moveTo(62.8557, 62.7942);
+    aHole.lineTo(272.572, 62.7942);
+    aHole.lineTo(272.572, 200.582);
+    aHole.lineTo(62.8557, 200.582);
+    aHole.closePath();
+
+    const nHole = new THREE.Path();    // the N interior
+    nHole.moveTo(295.428, 223.418);
+    nHole.lineTo(505.144, 223.418);
+    nHole.lineTo(505.144, 361.206);
+    nHole.lineTo(295.428, 361.206);
+    nHole.closePath();
+
+    s.holes.push(aHole, nHole);
+    return s;
+  }
+
+  // one shape for the joined frames + one each for the A and N letters
+  const shapes = [
+    boxUnionShape(),
+    ...SVGLoader.createShapes(paths[2]),   // A letter
+    ...SVGLoader.createShapes(paths[3]),   // N letter
+  ];
+
+  const geom = new THREE.ExtrudeGeometry(shapes, {
+    depth: DEPTH, bevelEnabled: true,
+    bevelThickness: 3, bevelSize: 2.4, bevelSegments: 4,
+  });
+  geom.rotateX(Math.PI);   // SVG y-down -> y-up
+  geom.center();           // spin around the mark's own middle
+
+  const logo = new THREE.Mesh(geom, metal);
+  scene.add(logo);
+
+  geom.computeBoundingSphere();
+  const radius = geom.boundingSphere.radius;
+
+  /* ---------- controls: drag to rotate ---------- */
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = false;
+  controls.enableZoom = false;
+  controls.rotateSpeed = 0.9;
+
+  let dragging = false;
+  controls.addEventListener("start", () => { dragging = true; });
+  controls.addEventListener("end",   () => { dragging = false; });
+
+  /* ---------- keep the logo framed at any window size ---------- */
+  function frame(){
+    camera.aspect = innerWidth / innerHeight;
+    const vFov = THREE.MathUtils.degToRad(camera.fov);
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+    const dist = (radius * 1.35) / Math.sin(Math.min(vFov, hFov) / 2);
+    camera.position.setLength(dist);
+    camera.updateProjectionMatrix();
+  }
+  function resize(){
+    renderer.setSize(innerWidth, innerHeight);
+    frame();
+  }
+  addEventListener("resize", resize);
+  resize();
+
+  /* ---------- render loop ---------- */
+  const clock = new THREE.Clock();
+  (function tick(){
+    requestAnimationFrame(tick);
+    const dt = clock.getDelta();
+    if (!dragging) logo.rotation.y += SPIN * dt;   // pause auto-spin while dragging
+    controls.update();
+    renderer.render(scene, camera);
+  })();
+
+  /* ---------- session status, live from the Google Calendar ----------
+     Reads the public "AN Sessions" calendar. The API returns events still
+     ending in the future, sorted by start time — so the earliest one is
+     either in progress now or the next session. Re-polled every 60s. */
+  const statusEl = document.getElementById("status");
+  const labelEl  = document.getElementById("status-label");
+  const cfg = window.AN_CONFIG || {};
+
+  function setStatus(state, label){
+    statusEl.dataset.state = state;
+    labelEl.textContent = label;
+  }
+
+  function formatSession(d){
+    const tz = "America/Los_Angeles";
+    const time = d.toLocaleString("en-US",
+      { timeZone: tz, hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+    const date = d.toLocaleString("en-US",
+      { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
+    return time + ", " + date;
+  }
+
+  async function refreshSession(){
+    if (!cfg.apiKey || !cfg.calendarId){
+      console.warn("AN_CONFIG missing — set calendarId and apiKey in config.js");
+      return;
+    }
+    const url = "https://www.googleapis.com/calendar/v3/calendars/"
+      + encodeURIComponent(cfg.calendarId) + "/events"
+      + "?key="     + encodeURIComponent(cfg.apiKey)
+      + "&singleEvents=true&orderBy=startTime"
+      + "&timeMin=" + new Date().toISOString()
+      + "&maxResults=10";
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      const sessions = (data.items || [])
+        .filter(e => e.summary === "AN Session" && e.start?.dateTime && e.end?.dateTime);
+
+      const next = sessions[0];   // earliest — API already sorts by start time
+      if (!next){
+        setStatus("scheduled", "No sessions scheduled");
+        return;
+      }
+      const start = new Date(next.start.dateTime).getTime();
+      const end   = new Date(next.end.dateTime).getTime();
+      const now   = Date.now();
+      if (start <= now && now < end){
+        setStatus("live", "Session in progress");
+      } else {
+        setStatus("scheduled", "Next session: " + formatSession(new Date(next.start.dateTime)));
+      }
+    } catch (err){
+      console.warn("Calendar fetch failed:", err.message);
+    }
+  }
+
+  refreshSession();
+  setInterval(refreshSession, 60000);
+  </script>
+</body>
+</html>
