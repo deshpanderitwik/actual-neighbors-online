@@ -1,2 +1,5 @@
 # Keep the earlier experiments out of the live deploy (still in the repo)
 sketches/
+
+# config.js is generated at build time from env vars — never upload a local copy
+config.js
