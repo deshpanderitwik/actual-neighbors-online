@@ -6,3 +6,7 @@ config.js
 
 # Local editor / tooling config
 .claude/
+
+# Build / deploy
+node_modules/
+.vercel
