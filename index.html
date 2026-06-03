@@ -15,10 +15,10 @@
   #scene{position:fixed;inset:0;z-index:0}
   #scene canvas{display:block}
 
-  /* ---------- glassmorphic top bar ----------
+  /* ---------- top bar ----------
      The status indicator and the shop button sit in a fixed row top-left.
-     Both share the frosted-glass treatment: the blur picks up the spinning
-     metal logo behind them, so each pill reads as a pane of glass. */
+     The status is plain text + dot (NOT framed as a pill, so it never reads
+     as interactive); only the shop button gets the frosted-glass treatment. */
   .topbar{
     position:fixed;top:34px;left:40px;z-index:2;
     display:flex;align-items:center;gap:14px;
@@ -26,6 +26,9 @@
   .status,.shop{
     display:flex;align-items:center;gap:14px;
     font-size:21px;letter-spacing:.005em;
+  }
+  /* shop button: frosted glass — the blur picks up the spinning metal logo */
+  .shop{
     padding:14px 22px;border-radius:16px;
     background:rgba(255,255,255,.06);
     border:1px solid rgba(255,255,255,.14);
