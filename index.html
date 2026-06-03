@@ -133,6 +133,46 @@
     side: THREE.DoubleSide,
   });
 
+  /* ---------- hover / touch glitch ----------
+     On hover (or touch) the geometry itself erupts. These uniforms feed a
+     vertex-shader glitch: vertices within uHoverR of the cursor (uHoverCenter,
+     geometry space) are pushed out along their normal by a stuttering, blocky,
+     cell-hashed amount — chunks and spikes extruding, with occasional inward
+     tears and lateral shear. Lighting is untouched, so it reads as the solid
+     mark violently deforming. Uniforms updated each frame in updateGlitch(). */
+  metal.onBeforeCompile = (shader) => {
+    shader.uniforms.uHoverActive = { value: 0 };
+    shader.uniforms.uHoverCenter = { value: new THREE.Vector3() };
+    shader.uniforms.uHoverR      = { value: 1 };
+    shader.uniforms.uTime        = { value: 0 };
+    shader.uniforms.uAmp         = { value: radius * 0.22 };
+    shader.uniforms.uCell        = { value: 13.0 };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>',
+        `#include <common>
+uniform float uHoverActive; uniform vec3 uHoverCenter; uniform float uHoverR;
+uniform float uTime; uniform float uAmp; uniform float uCell;
+float gh(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }`)
+      .replace('#include <begin_vertex>',
+        `#include <begin_vertex>
+if (uHoverActive > 0.5) {
+  float gdist = distance(position, uHoverCenter);
+  float fall = 1.0 - clamp(gdist / uHoverR, 0.0, 1.0);
+  if (fall > 0.0) {
+    float ts = floor(uTime * 16.0);              // stepped time = stutter
+    vec3  cell = floor(position / uCell);
+    float hc = gh(cell + ts);                    // per-cell, per-step random
+    float hv = gh(position * 0.06 + ts * 1.7);   // finer jitter
+    float spike = pow(hc, 3.0);                  // few cells spike far
+    float push = uAmp * fall * (spike * 4.0 + (hv - 0.5) * 1.4);
+    if (hc > 0.93) push -= uAmp * fall * 3.5;    // inward tears
+    transformed += normalize(objectNormal) * push;
+    transformed.x += (gh(cell * 1.7 + ts) - 0.5) * 2.0 * uAmp * fall * step(0.8, gh(cell + ts * 0.5));
+  }
+}`);
+    metal.userData.shader = shader;
+  };
+
   /* ---------- build the extruded logo ----------
      The two box frames overlap at one corner. Instead of extruding them
      separately (which doubles up geometry there), their 2D union is defined
@@ -192,6 +232,50 @@
   geom.computeBoundingSphere();
   const radius = geom.boundingSphere.radius;
 
+  /* ---------- hover / touch tracking ----------
+     Updates the cursor in NDC; the raycast happens in the render loop against
+     the spinning mesh, so the eruption tracks the live surface. Mouse: hover to
+     glitch (pointermove + pointerleave). Touch: there's no hover, so press and
+     drag to glitch — pointerdown/move start it, lifting the finger (up/cancel)
+     stops it. The raycast hits the original (undeformed) geometry, keeping the
+     hit point stable while the spikes bloom around it. */
+  const raycaster = new THREE.Raycaster();
+  const ndc       = new THREE.Vector2();
+  const hitLocal  = new THREE.Vector3();
+  let pointerInside = false, hovering = false;
+  function setNDC(e){
+    const r = renderer.domElement.getBoundingClientRect();
+    ndc.x =  ((e.clientX - r.left) / r.width)  * 2 - 1;
+    ndc.y = -((e.clientY - r.top)  / r.height) * 2 + 1;
+  }
+  renderer.domElement.addEventListener("pointerdown",   (e) => { setNDC(e); pointerInside = true; });
+  renderer.domElement.addEventListener("pointermove",   (e) => { setNDC(e); pointerInside = true; });
+  renderer.domElement.addEventListener("pointerleave",  ()  => { pointerInside = false; });                     // mouse leaves canvas
+  renderer.domElement.addEventListener("pointerup",     (e) => { if (e.pointerType !== "mouse") pointerInside = false; });  // finger lifts
+  renderer.domElement.addEventListener("pointercancel", ()  => { pointerInside = false; });
+
+  const HOVER_R = radius * 0.34;     // radius of the erupting zone around the cursor
+
+  /* ---------- glitch driver ----------
+     Raycast the cursor/touch against the spinning mesh and feed the hit point +
+     time into the vertex-shader glitch, so the geometry erupts where you point.
+     All the heavy work is on the GPU — this just updates uniforms. */
+  function updateGlitch(t){
+    hovering = false;
+    if (pointerInside){
+      raycaster.setFromCamera(ndc, camera);
+      const hit = raycaster.intersectObject(logo, false)[0];
+      if (hit){ hovering = true; logo.worldToLocal(hitLocal.copy(hit.point)); }
+    }
+    const sh = metal.userData.shader;
+    if (sh){
+      sh.uniforms.uHoverActive.value = hovering ? 1 : 0;
+      sh.uniforms.uHoverR.value = HOVER_R;
+      sh.uniforms.uTime.value = t;
+      if (hovering) sh.uniforms.uHoverCenter.value.copy(hitLocal);
+    }
+  }
+
   /* ---------- controls: drag to rotate ---------- */
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -222,11 +306,14 @@
 
   /* ---------- render loop ---------- */
   const clock = new THREE.Clock();
+  let elapsed = 0;
   (function tick(){
     requestAnimationFrame(tick);
     const dt = clock.getDelta();
+    elapsed += dt;
     if (!dragging) logo.rotation.y += SPIN * dt;   // pause auto-spin while dragging
     controls.update();
+    updateGlitch(elapsed);
     renderer.render(scene, camera);
   })();
 
