@@ -53,13 +53,10 @@
   }
 
   /* ---------- mobile ----------
-     Shrink the pills so "Session in progress" sits on one line, and drop the
-     shop button to the bottom-left, left-aligned with the status pill. */
+     Shrink the pills so "Session in progress" sits on one line. The shop
+     button keeps the desktop top-right placement (via the topbar). */
   @media (max-width:600px){
     .status,.shop{font-size:16px}
-    .shop{
-      position:fixed;top:auto;bottom:34px;left:40px;
-    }
   }
 
 </style>
