@@ -15,10 +15,24 @@
   #scene{position:fixed;inset:0;z-index:0}
   #scene canvas{display:block}
 
-  .status{
+  /* ---------- glassmorphic top bar ----------
+     The status indicator and the shop button sit in a fixed row top-left.
+     Both share the frosted-glass treatment: the blur picks up the spinning
+     metal logo behind them, so each pill reads as a pane of glass. */
+  .topbar{
     position:fixed;top:34px;left:40px;z-index:2;
     display:flex;align-items:center;gap:14px;
+  }
+  .status,.shop{
+    display:flex;align-items:center;gap:14px;
     font-size:21px;letter-spacing:.005em;
+    padding:14px 22px;border-radius:16px;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.14);
+    backdrop-filter:blur(14px) saturate(140%);
+    -webkit-backdrop-filter:blur(14px) saturate(140%);
+    box-shadow:0 8px 32px rgba(0,0,0,.35),
+               inset 0 1px 0 rgba(255,255,255,.12);
   }
   .dot{width:13px;height:13px;border-radius:50%;flex:none}
   .status[data-state="live"] .dot{
@@ -27,14 +41,26 @@
   .status[data-state="scheduled"] .dot{
     background:transparent;border:1.6px solid rgba(255,255,255,.5);
   }
+  /* shop button: same glass, plus a link reset and a brighter hover */
+  .shop{
+    color:#f4f4f5;text-decoration:none;cursor:pointer;
+    transition:background .2s ease,border-color .2s ease;
+  }
+  .shop:hover{
+    background:rgba(255,255,255,.12);
+    border-color:rgba(255,255,255,.28);
+  }
 
 </style>
 </head>
 <body>
 
-  <div class="status" data-state="scheduled" id="status">
-    <span class="dot"></span>
-    <span class="label" id="status-label">Checking schedule&hellip;</span>
+  <div class="topbar">
+    <div class="status" data-state="scheduled" id="status">
+      <span class="dot"></span>
+      <span class="label" id="status-label">Checking schedule&hellip;</span>
+    </div>
+    <a class="shop" href="https://shop.actualneighbors.com/">Shop</a>
   </div>
 
   <div id="scene"></div>
