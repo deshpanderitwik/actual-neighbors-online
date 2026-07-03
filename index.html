@@ -44,7 +44,9 @@
     font-family:Inter,"Helvetica Neue",sans-serif;
     font-size:14px;font-weight:700;letter-spacing:1.08px;
   }
-  .list{display:flex;flex-direction:column;gap:16px}
+  /* flex-start keeps each link's click target at its own text width
+     (in a stretched column every <a> would span the container) */
+  .list{display:flex;flex-direction:column;align-items:flex-start;gap:16px}
   .link{
     display:flex;align-items:center;gap:16px;
     font-family:"DotGothic16","Helvetica Neue",sans-serif;font-size:24px;
