@@ -56,27 +56,33 @@
   .link:hover .arrow{visibility:visible}
 
   /* ---------- mobile ----------
-     Logo sits in the top band (the scene pans, see frame()), the status is
-     centered under it, and the links flow below. The page may scroll if a
-     short screen can't fit the whole nav. */
+     Logo sits in the top band (the scene pans, see frame()). Everything from
+     the status down lives in #ui, one scroll layer pinned just under the
+     logo (top set by placeMobileUI(); 31% is the pre-JS fallback) — so
+     touches below the logo scroll natively and never reach the canvas. The
+     canvas only gets touches in the logo band above it. */
   @media (max-width:600px){
-    body{overflow:hidden auto}
-    .status{
-      position:absolute;left:50px;top:31%;
-      font-size:24px;white-space:nowrap;
+    #ui{
+      position:fixed;left:0;right:0;top:31%;bottom:0;
+      overflow-y:auto;z-index:2;
     }
-    /* these tops are pre-JS fallbacks — placeMobileUI() pins the real ones
-       to the logo's projected bottom edge (status 41px under it, links 35px
-       under the status) */
-    .links{position:absolute;left:50px;top:calc(31% + 90px);gap:48px;padding-bottom:48px}
+    .status{
+      position:static;margin:0 0 35px 50px;
+      font-size:20px;white-space:nowrap;
+    }
+    .links{position:static;margin-left:50px;gap:48px;padding-bottom:48px}
+    .group h2{font-size:12px}
     .list{gap:8px}
-    .link{font-size:24px}
+    .link{font-size:20px}
   }
 
 </style>
 </head>
 <body>
 
+  <!-- on mobile #ui becomes the scroll layer under the logo; on desktop it's
+       inert and the status/links position themselves against the viewport -->
+  <div id="ui">
   <div class="status" data-state="scheduled" id="status">
     <span class="dot"></span>
     <span class="label" id="status-label">Checking schedule&hellip;</span>
@@ -104,6 +110,7 @@
       </div>
     </section>
   </nav>
+  </div>
 
   <div id="scene"></div>
 
@@ -387,28 +394,25 @@ if (uHoverActive > 0.5) {
     placeMobileUI();
   }
 
-  /* ---------- mobile: hang the status + links off the mark ----------
+  /* ---------- mobile: hang the scroll layer off the mark ----------
      The design fixes the vertical rhythm to the logo: status 41px below the
-     mark's bottom edge, links 35px below the status. Where that bottom edge
-     lands on screen depends on the camera framing, so it's projected here
-     (front-facing pose, matching the design's static render) and written as
-     inline tops. On desktop the stylesheet positions apply untouched. */
-  const statusNode = document.getElementById("status");
-  const linksNode  = document.querySelector(".links");
+     mark's bottom edge (links 35px further down, via CSS margin). Where that
+     bottom edge lands on screen depends on the camera framing, so it's
+     projected here (front-facing pose, matching the design's static render)
+     and written as #ui's top. On desktop the stylesheet applies untouched. */
+  const uiNode    = document.getElementById("ui");
+  const linksNode = document.querySelector(".links");
   geom.computeBoundingBox();
   const bb = geom.boundingBox;
   function placeMobileUI(){
     if (innerWidth > 600){
-      statusNode.style.top = "";
-      linksNode.style.top  = "";
+      uiNode.style.top = "";
       return;
     }
     camera.updateMatrixWorld();
     const p = new THREE.Vector3(0, bb.min.y, bb.max.z).project(camera);
     const logoBottom = (1 - p.y) / 2 * innerHeight;
-    const statusTop  = Math.round(logoBottom) + 41;
-    statusNode.style.top = statusTop + "px";
-    linksNode.style.top  = (statusTop + statusNode.offsetHeight + 35) + "px";
+    uiNode.style.top = (Math.round(logoBottom) + 41) + "px";
   }
   function resize(){
     renderer.setSize(innerWidth, innerHeight);
