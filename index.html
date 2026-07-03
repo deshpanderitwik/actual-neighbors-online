@@ -18,22 +18,29 @@
   #scene{position:fixed;inset:0;z-index:0}
   #scene canvas{display:block}
 
-  /* ---------- overlay UI (Figma: desktop 1084:6, mobile 1084:51) ----------
-     Status line top-left, link nav below it. The status is plain text + dot
-     (NOT framed as a pill, so it never reads as interactive). Both layers sit
-     above the canvas; the canvas keeps pointer events everywhere else. */
+  /* ---------- overlay UI (Figma: desktop 1084:6, mobile 1084:51/1104:91) ---
+     The status is a NEXT SESSION nav group: terse all-caps value, green dot
+     after it only while live. On desktop the group escapes the nav flow and
+     sits fixed top-left; on mobile it flows as the first section. Overlays
+     sit above the canvas; the canvas keeps pointer events everywhere else. */
+  #status-group{position:fixed;top:72px;left:96px;z-index:2}
   .status{
-    position:fixed;top:72px;left:96px;z-index:2;
     display:flex;align-items:center;gap:16px;
     font-family:"DotGothic16","Helvetica Neue",sans-serif;font-size:24px;
+    white-space:nowrap;
   }
   .dot{width:16px;height:16px;border-radius:50%;flex:none}
   .status[data-state="live"] .dot{
-    background:#3ad84d;box-shadow:0 0 12px rgba(58,216,77,.7);
+    background:#3ad84d;
+    animation:breathe 1.8s ease-in-out infinite;
   }
-  .status[data-state="scheduled"] .dot{
-    background:transparent;border:1.6px solid rgba(255,255,255,.5);
+  /* the live dot breathes like an indicator lamp: the glow swells and the
+     lamp itself brightens a touch at the peak */
+  @keyframes breathe{
+    0%,100%{box-shadow:0 0 8px rgba(58,216,77,.5);filter:brightness(.9)}
+    50%{box-shadow:0 0 12px rgba(58,216,77,.9);filter:brightness(1.15)}
   }
+  .status[data-state="scheduled"] .dot{display:none}
 
   .links{
     position:fixed;left:96px;top:225px;z-index:2;
@@ -68,10 +75,8 @@
       position:fixed;left:0;right:0;top:31%;bottom:0;
       overflow-y:auto;z-index:2;
     }
-    .status{
-      position:static;margin:0 0 35px 50px;padding-right:24px;
-      font-size:20px;
-    }
+    #status-group{position:static}
+    .status{font-size:20px}
     .links{position:static;margin-left:50px;gap:48px}
     .group h2{font-size:12px}
     .list{gap:8px}
@@ -85,12 +90,14 @@
   <!-- on mobile #ui becomes the scroll layer under the logo; on desktop it's
        inert and the status/links position themselves against the viewport -->
   <div id="ui">
-  <div class="status" data-state="scheduled" id="status">
-    <span class="dot"></span>
-    <span class="label" id="status-label">Checking schedule&hellip;</span>
-  </div>
-
   <nav class="links">
+    <section class="group" id="status-group">
+      <h2>NEXT SESSION</h2>
+      <div class="status" data-state="scheduled" id="status">
+        <span class="label" id="status-label">CHECKING SCHEDULE&hellip;</span>
+        <span class="dot"></span>
+      </div>
+    </section>
     <section class="group">
       <h2>LISTEN</h2>
       <div class="list">
@@ -397,11 +404,11 @@ if (uHoverActive > 0.5) {
   }
 
   /* ---------- mobile: hang the scroll layer off the mark ----------
-     The design fixes the vertical rhythm to the logo: status 41px below the
-     mark's bottom edge (links 35px further down, via CSS margin). Where that
-     bottom edge lands on screen depends on the camera framing, so it's
-     projected here (front-facing pose, matching the design's static render)
-     and written as #ui's top. On desktop the stylesheet applies untouched. */
+     The design fixes the vertical rhythm to the logo: the nav (NEXT SESSION
+     group first) starts 50px below the mark's bottom edge. Where that bottom
+     edge lands on screen depends on the camera framing, so it's projected
+     here (front-facing pose, matching the design's static render) and
+     written as #ui's top. On desktop the stylesheet applies untouched. */
   const uiNode    = document.getElementById("ui");
   const linksNode = document.querySelector(".links");
   geom.computeBoundingBox();
@@ -414,7 +421,7 @@ if (uHoverActive > 0.5) {
     camera.updateMatrixWorld();
     const p = new THREE.Vector3(0, bb.min.y, bb.max.z).project(camera);
     const logoBottom = (1 - p.y) / 2 * innerHeight;
-    uiNode.style.top = (Math.round(logoBottom) + 41) + "px";
+    uiNode.style.top = (Math.round(logoBottom) + 50) + "px";
   }
   function resize(){
     renderer.setSize(innerWidth, innerHeight);
@@ -451,13 +458,20 @@ if (uHoverActive > 0.5) {
     labelEl.textContent = label;
   }
 
+  /* SUN JUL 07 @ 4PM PDT — terse so the line never wraps (minutes only
+     when the session isn't on the hour) */
   function formatSession(d){
     const tz = "America/Los_Angeles";
-    const time = d.toLocaleString("en-US",
-      { timeZone: tz, hour: "numeric", minute: "2-digit", timeZoneName: "short" });
     const date = d.toLocaleString("en-US",
-      { timeZone: tz, weekday: "long", month: "long", day: "numeric" });
-    return time + ", " + date;
+      { timeZone: tz, weekday: "short", month: "short", day: "2-digit" })
+      .replace(",", "").toUpperCase();
+    const parts = {};
+    for (const p of new Intl.DateTimeFormat("en-US",
+      { timeZone: tz, hour: "numeric", minute: "2-digit", timeZoneName: "short" })
+      .formatToParts(d)) parts[p.type] = p.value;
+    return date + " @ " + parts.hour
+      + (parts.minute === "00" ? "" : ":" + parts.minute)
+      + parts.dayPeriod.toUpperCase() + " " + parts.timeZoneName;
   }
 
   async function refreshSession(){
@@ -480,16 +494,16 @@ if (uHoverActive > 0.5) {
 
       const next = sessions[0];   // earliest — API already sorts by start time
       if (!next){
-        setStatus("scheduled", "No sessions scheduled");
+        setStatus("scheduled", "NONE SCHEDULED");
         return;
       }
       const start = new Date(next.start.dateTime).getTime();
       const end   = new Date(next.end.dateTime).getTime();
       const now   = Date.now();
       if (start <= now && now < end){
-        setStatus("live", "Session in progress");
+        setStatus("live", "IN PROGRESS");
       } else {
-        setStatus("scheduled", "Next session: " + formatSession(new Date(next.start.dateTime)));
+        setStatus("scheduled", formatSession(new Date(next.start.dateTime)));
       }
     } catch (err){
       console.warn("Calendar fetch failed:", err.message);
