@@ -10,6 +10,10 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
+  /* the whole UI scales with the window: 1rem tracks window width — 16px at
+     the reference width (1440 desktop / 393 mobile) — and every size below
+     is in rem. Clamped so extreme window sizes stay sane. */
+  html{font-size:clamp(10px, 1.1111vw, 22px)}
   body{
     background:#0a0a0b;color:#f4f4f5;overflow:hidden;
     font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -23,13 +27,13 @@
      after it only while live. On desktop the group escapes the nav flow and
      sits fixed top-left; on mobile it flows as the first section. Overlays
      sit above the canvas; the canvas keeps pointer events everywhere else. */
-  #status-group{position:fixed;top:72px;left:96px;z-index:2}
+  #status-group{position:fixed;top:4.5rem;left:6rem;z-index:2}
   .status{
-    display:flex;align-items:center;gap:16px;
-    font-family:"DotGothic16","Helvetica Neue",sans-serif;font-size:24px;
+    display:flex;align-items:center;gap:1rem;
+    font-family:"DotGothic16","Helvetica Neue",sans-serif;font-size:1.5rem;
     white-space:nowrap;
   }
-  .dot{width:16px;height:16px;border-radius:50%;flex:none}
+  .dot{width:1rem;height:1rem;border-radius:50%;flex:none}
   .status[data-state="live"] .dot{
     background:#3ad84d;
     animation:breathe 1.8s ease-in-out infinite;
@@ -37,26 +41,29 @@
   /* the live dot breathes like an indicator lamp: the glow swells and the
      lamp itself brightens a touch at the peak */
   @keyframes breathe{
-    0%,100%{box-shadow:0 0 8px rgba(58,216,77,.5);filter:brightness(.9)}
-    50%{box-shadow:0 0 12px rgba(58,216,77,.9);filter:brightness(1.15)}
+    0%,100%{box-shadow:0 0 .5rem rgba(58,216,77,.5);filter:brightness(.9)}
+    50%{box-shadow:0 0 .75rem rgba(58,216,77,.9);filter:brightness(1.15)}
   }
   .status[data-state="scheduled"] .dot{display:none}
 
+  /* frame() centers the column vertically (inline top) so tall windows don't
+     leave a dead band below; this top is the pre-JS fallback. No transform —
+     it would become the containing block for the fixed #status-group. */
   .links{
-    position:fixed;left:96px;top:225px;z-index:2;
-    display:flex;flex-direction:column;gap:56px;
+    position:fixed;left:6rem;top:14.0625rem;z-index:2;
+    display:flex;flex-direction:column;gap:3.5rem;
   }
-  .group{display:flex;flex-direction:column;gap:16px}
+  .group{display:flex;flex-direction:column;gap:1rem}
   .group h2{
     font-family:Inter,"Helvetica Neue",sans-serif;
-    font-size:14px;font-weight:700;letter-spacing:1.08px;
+    font-size:.875rem;font-weight:700;letter-spacing:.0675rem;
   }
   /* flex-start keeps each link's click target at its own text width
      (in a stretched column every <a> would span the container) */
-  .list{display:flex;flex-direction:column;align-items:flex-start;gap:16px}
+  .list{display:flex;flex-direction:column;align-items:flex-start;gap:1rem}
   .link{
-    display:flex;align-items:center;gap:16px;
-    font-family:"DotGothic16","Helvetica Neue",sans-serif;font-size:24px;
+    display:flex;align-items:center;gap:1rem;
+    font-family:"DotGothic16","Helvetica Neue",sans-serif;font-size:1.5rem;
     color:#f4f4f5;text-decoration:none;white-space:nowrap;
   }
   /* hover reveals the arrow; it stays in the layout (visibility, not
@@ -71,17 +78,18 @@
      touches below the logo scroll natively and never reach the canvas. The
      canvas only gets touches in the logo band above it. */
   @media (max-width:600px){
+    html{font-size:clamp(12px, 4.0712vw, 22px)}
     #ui{
       position:fixed;left:0;right:0;top:31%;bottom:0;
       overflow-y:auto;z-index:2;
     }
     #status-group{position:static}
-    .status{font-size:20px}
+    .status{font-size:1.25rem}
     /* breathing room so the last link never sits near the screen edge */
-    .links{position:static;margin-left:50px;gap:48px;padding-bottom:72px}
-    .group h2{font-size:12px}
-    .list{gap:8px}
-    .link{font-size:20px}
+    .links{position:static;margin-left:3.125rem;gap:3rem;padding-bottom:4.5rem}
+    .group h2{font-size:.75rem}
+    .list{gap:.5rem}
+    .link{font-size:1.25rem}
   }
 
 </style>
@@ -388,9 +396,11 @@ if (uHoverActive > 0.5) {
       camera.setViewOffset(innerWidth, innerHeight,
         0, innerHeight * 0.33, innerWidth, innerHeight);
     } else {
-      // desktop: back the camera off until the mark's projected height
-      // sits a touch under the link list's (90%), then pan right of center
-      // and vertically so the two stay centered on each other
+      // desktop: center the link column vertically, then back the camera
+      // off until the mark's projected height sits a touch under the
+      // list's (90%) and pan so the two stay centered on each other
+      linksNode.style.top =
+        Math.round((innerHeight - linksNode.offsetHeight) / 2) + "px";
       const rect = linksNode.getBoundingClientRect();
       const dist = (bb.max.y - bb.min.y) * innerHeight
                  / (2 * Math.tan(vFov / 2) * rect.height * 0.9);
@@ -422,7 +432,9 @@ if (uHoverActive > 0.5) {
     camera.updateMatrixWorld();
     const p = new THREE.Vector3(0, bb.min.y, bb.max.z).project(camera);
     const logoBottom = (1 - p.y) / 2 * innerHeight;
-    uiNode.style.top = (Math.round(logoBottom) + 50) + "px";
+    // 50px at the 393px reference width, scaling with the rem-based UI
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    uiNode.style.top = Math.round(logoBottom + 50 * rem / 16) + "px";
   }
   function resize(){
     renderer.setSize(innerWidth, innerHeight);
