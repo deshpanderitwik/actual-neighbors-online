@@ -202,14 +202,12 @@
       return path
     }
 
-    // At the end of each pass the playhead rewinds — a quick eased sweep back
-    // to zero — and the next track's contour takes over from the top, with a
-    // soft dissolve across the handoff.
-    const REWIND_SECONDS = 1.1
+    // When a pass completes, the fully-swept frame simply dissolves — a beat
+    // of black, then the next track's contour fades in from the top.
     const FADE_OUT_SECONDS = 0.45
     const FADE_IN_DELAY = 0.25    // a beat of black before the next track
     const FADE_IN_SECONDS = 0.8
-    const CYCLE = LOOP_SECONDS + REWIND_SECONDS
+    const CYCLE = LOOP_SECONDS + FADE_OUT_SECONDS
 
     // Smoothstep: gentle start, gentle landing.
     const ease = (u) => u * u * (3 - 2 * u)
@@ -220,14 +218,8 @@
       const line = lines[k]
       const t = s - k * CYCLE
 
-      let playX
-      if (t < LOOP_SECONDS) {
-        playX = (t / LOOP_SECONDS) * w
-      } else {
-        const u = (t - LOOP_SECONDS) / REWIND_SECONDS
-        const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2
-        playX = (1 - e) * w
-      }
+      // Past the end of the pass the frame holds fully swept while it fades.
+      const playX = Math.min(t / LOOP_SECONDS, 1) * w
 
       // Dissolve across the handoff: out at the end of the rewind, then a
       // beat of black, then the next track eases in.
