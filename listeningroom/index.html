@@ -44,6 +44,15 @@
     height: 100%;
     width: 100%;
     text-align: center;
+    /* Held back until the fonts land, so the swap from the system fallback
+       to Inter — which is a visible jump in size at this scale — happens
+       out of sight. The page arrives composed rather than correcting itself. */
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+
+  main.ready {
+    opacity: 1;
   }
 
   .mark { width: 72px; height: 48px }
@@ -121,6 +130,20 @@
       Download for macOS
     </a>
   </main>
+  <script>
+    // Reveal once the type is real. The timeout is the safety net: a font
+    // that never arrives must not leave the page blank.
+    (function () {
+      const main = document.querySelector('main')
+      const reveal = () => main.classList.add('ready')
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(reveal)
+        setTimeout(reveal, 2000)
+      } else {
+        reveal()
+      }
+    })()
+  </script>
   <script src="/listeningroom/assets/contours.js"></script>
   <script>
     // The miniature playing contour: the band's own loudness lines, sweeping
