@@ -81,6 +81,11 @@
     color: #070707;
   }
 
+  /* Below 838px the 112px headline starts crowding the download pill. */
+  @media (max-width: 838px) {
+    h1 { font-size: 72px }
+  }
+
   @media (max-width: 600px) {
     h1 { font-size: 44px; font-weight: 200 }
     .download { height: 84px; font-size: 22px; border-width: 1.5px }
