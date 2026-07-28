@@ -189,8 +189,13 @@
     // to zero — and the next track's contour takes over from the top, with a
     // soft dissolve across the handoff.
     const REWIND_SECONDS = 1.1
-    const FADE_SECONDS = 0.45
+    const FADE_OUT_SECONDS = 0.45
+    const FADE_IN_DELAY = 0.25    // a beat of black before the next track
+    const FADE_IN_SECONDS = 0.8
     const CYCLE = LOOP_SECONDS + REWIND_SECONDS
+
+    // Smoothstep: gentle start, gentle landing.
+    const ease = (u) => u * u * (3 - 2 * u)
 
     function draw(now) {
       const s = (now / 1000) % (CYCLE * lines.length)
@@ -207,11 +212,15 @@
         playX = (1 - e) * w
       }
 
-      // Dissolve across the handoff: out at the end of the rewind, in as the
-      // next track takes over.
+      // Dissolve across the handoff: out at the end of the rewind, then a
+      // beat of black, then the next track eases in.
       let fade = 1
-      if (t < FADE_SECONDS) fade = t / FADE_SECONDS
-      else if (t > CYCLE - FADE_SECONDS) fade = (CYCLE - t) / FADE_SECONDS
+      if (t < FADE_IN_DELAY) fade = 0
+      else if (t < FADE_IN_DELAY + FADE_IN_SECONDS) {
+        fade = ease((t - FADE_IN_DELAY) / FADE_IN_SECONDS)
+      } else if (t > CYCLE - FADE_OUT_SECONDS) {
+        fade = ease((CYCLE - t) / FADE_OUT_SECONDS)
+      }
 
       ctx.clearRect(0, 0, w, h)
       ctx.lineWidth = STROKE
