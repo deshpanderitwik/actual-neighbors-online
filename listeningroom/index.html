@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Listening Room — by Actual Neighbors</title>
+<meta name="description" content="A listening room for reviewing tracks. By Actual Neighbors." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0 }
+  html, body { height: 100% }
+  body {
+    background: #070707;
+    color: #fff;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 48px 24px;
+    overflow: hidden;
+  }
+
+  main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    width: 100%;
+    text-align: center;
+  }
+
+  .mark { width: 72px; height: 48px }
+
+  h1 {
+    transform: translateY(-8px);
+    font-size: 112px;
+    font-weight: 100;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    max-width: 11em;
+  }
+
+  .download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 128px;
+    width: min(84vw, 880px);
+    flex: none;
+    border: 2px solid #ff6e35;
+    border-radius: 999px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 40px;
+    letter-spacing: -0.01em;
+    color: #ff6e35;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .download:hover {
+    background: #fff;
+    border-color: #fff;
+    color: #070707;
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 34px }
+    .download { height: 84px; font-size: 22px; border-width: 1.5px }
+  }
+
+  /* The miniature playing contour above the headline. */
+  #mini {
+    display: block;
+    width: 360px;
+    height: 72px;
+    margin: 0 auto 40px;
+  }
+
+  @media (max-width: 600px) {
+    #mini { width: 240px; height: 48px; margin-bottom: 24px }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <svg class="mark" viewBox="0 0 54 36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="27" height="17.8741" fill="white" />
+      <rect x="27" y="17.875" width="27" height="18.1258" fill="white" />
+    </svg>
+
+    <div class="hero">
+      <canvas id="mini"></canvas>
+      <h1>A listening room for reviewing tracks</h1>
+    </div>
+
+    <a class="download" href="https://github.com/deshpanderitwik/neighbors-releases/releases/latest/download/Listening-Room.dmg">
+      Download for macOS
+    </a>
+  </main>
+  <script src="assets/contours.js"></script>
+  <script>
+    // The miniature playing contour: the band's own loudness lines, sweeping
+    // from ahead-grey to played-orange behind a playhead. Each loop plays a
+    // different track's contour, cycling through the record.
+    const canvas = document.getElementById('mini')
+    const ctx = canvas.getContext('2d')
+    const tracks = window.CONTOURS || []
+
+    const LOOP_SECONDS = 30
+    const PAD_TOP = 0.06      // let the shape fill the little box
+    const PAD_BOTTOM = 0.06
+    const STROKE = 2
+    const SAMPLES = 140       // downsampled from raw series
+    const AHEAD = '#524e58'
+    const PLAYED = '#ff6e35'
+
+    let w = 0, h = 0, dpr = 1
+    let lines = []            // one Path2D per track, rebuilt on resize
+
+    // Average each track's raw values into a modest set of samples — the raw
+    // series wiggles faster than a pixel, which reads as noise, not shape.
+    // Gaps (nulls) just carry the previous level.
+    const sampleSets = tracks.map((track) => {
+      const values = track.values
+      const samples = []
+      let carry = 0.5
+      for (let s = 0; s < SAMPLES; s++) {
+        const a = Math.floor((s / SAMPLES) * values.length)
+        const b = Math.max(a + 1, Math.floor(((s + 1) / SAMPLES) * values.length))
+        let sum = 0, n = 0
+        for (let i = a; i < b; i++) {
+          if (typeof values[i] === 'number') { sum += values[i]; n++ }
+        }
+        if (n > 0) carry = sum / n
+        samples.push(carry)
+      }
+      // Two gentle neighbor-average passes: long undulations, no jitter.
+      for (let pass = 0; pass < 2; pass++) {
+        for (let i = 1; i < samples.length - 1; i++) {
+          samples[i] = (samples[i - 1] + samples[i] * 2 + samples[i + 1]) / 4
+        }
+      }
+      return samples
+    })
+
+    function resize() {
+      dpr = window.devicePixelRatio || 1
+      const rect = canvas.getBoundingClientRect()
+      w = rect.width
+      h = rect.height
+      canvas.width = Math.round(w * dpr)
+      canvas.height = Math.round(h * dpr)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      lines = sampleSets.map(buildLine)
+    }
+
+    // Catmull-Rom spline through the samples, so the line is one continuous
+    // curve instead of a chain of visible segments.
+    function buildLine(samples) {
+      const top = h * PAD_TOP
+      const band = h * (1 - PAD_TOP - PAD_BOTTOM)
+      const px = (i) => (i / (samples.length - 1)) * w
+      const py = (i) => top + (1 - samples[i]) * band
+
+      const path = new Path2D()
+      path.moveTo(px(0), py(0))
+      for (let i = 0; i < samples.length - 1; i++) {
+        const x0 = px(Math.max(i - 1, 0)), y0 = py(Math.max(i - 1, 0))
+        const x1 = px(i), y1 = py(i)
+        const x2 = px(i + 1), y2 = py(i + 1)
+        const j = Math.min(i + 2, samples.length - 1)
+        const x3 = px(j), y3 = py(j)
+        path.bezierCurveTo(
+          x1 + (x2 - x0) / 6, y1 + (y2 - y0) / 6,
+          x2 - (x3 - x1) / 6, y2 - (y3 - y1) / 6,
+          x2, y2
+        )
+      }
+      return path
+    }
+
+    // At the end of each pass the playhead rewinds — a quick eased sweep back
+    // to zero — and the next track's contour takes over from the top, with a
+    // soft dissolve across the handoff.
+    const REWIND_SECONDS = 1.1
+    const FADE_SECONDS = 0.45
+    const CYCLE = LOOP_SECONDS + REWIND_SECONDS
+
+    function draw(now) {
+      const s = (now / 1000) % (CYCLE * lines.length)
+      const k = Math.floor(s / CYCLE)
+      const line = lines[k]
+      const t = s - k * CYCLE
+
+      let playX
+      if (t < LOOP_SECONDS) {
+        playX = (t / LOOP_SECONDS) * w
+      } else {
+        const u = (t - LOOP_SECONDS) / REWIND_SECONDS
+        const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2
+        playX = (1 - e) * w
+      }
+
+      // Dissolve across the handoff: out at the end of the rewind, in as the
+      // next track takes over.
+      let fade = 1
+      if (t < FADE_SECONDS) fade = t / FADE_SECONDS
+      else if (t > CYCLE - FADE_SECONDS) fade = (CYCLE - t) / FADE_SECONDS
+
+      ctx.clearRect(0, 0, w, h)
+      ctx.lineWidth = STROKE
+      ctx.lineJoin = 'round'
+      ctx.lineCap = 'round'
+      ctx.globalAlpha = fade
+
+      // Ahead: the whole line in grey.
+      ctx.strokeStyle = AHEAD
+      ctx.stroke(line)
+
+      // Played: the same line, clipped to the swept region, in orange.
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(0, 0, playX, h)
+      ctx.clip()
+      ctx.strokeStyle = PLAYED
+      ctx.stroke(line)
+      ctx.restore()
+
+      // Playhead: full height, quiet white.
+      ctx.globalAlpha = 0.9 * fade
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(playX - 0.5, 0, 1, h)
+      ctx.globalAlpha = 1
+
+      requestAnimationFrame(draw)
+    }
+
+    if (tracks.length > 0) {
+      resize()
+      window.addEventListener('resize', resize)
+      requestAnimationFrame(draw)
+    }
+  </script>
+</body>
+</html>
