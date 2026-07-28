@@ -62,12 +62,13 @@
     align-items: center;
     justify-content: center;
     height: 128px;
-    width: min(84vw, 880px);
+    /* No viewport cap: it takes the width it's given, up to 880. */
+    width: min(100%, 880px);
     flex: none;
     border: 2px solid #ff6e35;
     border-radius: 999px;
     font-family: 'Space Mono', monospace;
-    font-weight: 700;
+    font-weight: 500;
     font-size: 40px;
     letter-spacing: -0.01em;
     color: #ff6e35;
