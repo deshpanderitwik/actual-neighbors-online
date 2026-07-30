@@ -70,6 +70,14 @@
      display) so the row never shifts — mirrors the hidden → in the Figma */
   .link .arrow{visibility:hidden}
   .link:hover .arrow{visibility:visible}
+  /* the listen links split into two side-by-side columns on desktop,
+     filling top-to-bottom (streaming left, the rest right) */
+  .listen{
+    display:grid;grid-auto-flow:column;
+    grid-template-rows:repeat(3, auto);
+    grid-template-columns:repeat(2, max-content);
+    column-gap:3rem;row-gap:1rem;
+  }
 
   /* ---------- mobile ----------
      Logo sits in the top band (the scene pans, see frame()). Everything from
@@ -89,6 +97,11 @@
     .links{position:static;margin-left:3.125rem;gap:3rem;padding-bottom:4.5rem}
     .group h2{font-size:.75rem}
     .list{gap:.5rem}
+    /* tighter two-column listen grid; the hover arrow can never show on
+       touch, so drop its reserved space to make the columns fit.
+       (after .list — its gap shorthand would override column-gap) */
+    .listen{column-gap:2.5rem;row-gap:.5rem}
+    .link .arrow{display:none}
     .link{font-size:1.25rem}
   }
 
@@ -109,10 +122,13 @@
     </section>
     <section class="group">
       <h2>LISTEN</h2>
-      <div class="list">
+      <div class="list listen">
         <a class="link" href="https://open.spotify.com/artist/756ywnC1hNNFCN6tCs5zSq" target="_blank" rel="noopener">Spotify<span class="arrow" aria-hidden="true">&rarr;</span></a>
         <a class="link" href="https://music.apple.com/us/artist/actual-neighbors/1811532446" target="_blank" rel="noopener">Apple Music<span class="arrow" aria-hidden="true">&rarr;</span></a>
         <a class="link" href="https://tidal.com/artist/57951411" target="_blank" rel="noopener">Tidal<span class="arrow" aria-hidden="true">&rarr;</span></a>
+        <a class="link" href="https://actualneighbors.bandcamp.com" target="_blank" rel="noopener">Bandcamp<span class="arrow" aria-hidden="true">&rarr;</span></a>
+        <a class="link" href="https://soundcloud.com/actualneighbors" target="_blank" rel="noopener">SoundCloud<span class="arrow" aria-hidden="true">&rarr;</span></a>
+        <a class="link" href="https://www.qobuz.com/us-en/interpreter/actual-neighbors/26754313" target="_blank" rel="noopener">Qobuz<span class="arrow" aria-hidden="true">&rarr;</span></a>
       </div>
     </section>
     <section class="group">

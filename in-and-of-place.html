@@ -43,7 +43,19 @@
   .link .arrow{visibility:hidden}
   .link:hover .arrow{visibility:visible}
 
-  .listen{margin-top:1.5rem}
+  /* listen links in two side-by-side columns, filling top-to-bottom */
+  .listen{
+    margin-top:1.5rem;
+    display:grid;grid-auto-flow:column;
+    grid-template-rows:repeat(3, auto);
+    grid-template-columns:repeat(2, max-content);
+    column-gap:2rem;row-gap:.5rem;
+  }
+  /* the hover arrow can never show on touch — drop its reserved space so
+     the two columns fit the mobile card width */
+  @media (max-width:600px){
+    .link .arrow{display:none}
+  }
 
   hr{border:0;border-top:1px solid rgba(255,255,255,.4);margin-top:6rem}
 
@@ -64,9 +76,10 @@
       display:flex;flex-direction:row-reverse;
       align-items:center;justify-content:space-between;gap:4rem;
     }
-    .col{width:18.875rem;flex:none}
+    .col{width:25rem;flex:none}
     .art{width:min(31.25rem, 66vh);height:auto;margin:0 auto}
     h1{margin-top:0}
+    .listen{column-gap:3rem}
   }
 </style>
 </head>
@@ -83,6 +96,9 @@
       <a class="link" href="https://open.spotify.com/album/0W4NLQBGxMBNvqlHVM26aV?si=3soNeK8nQxaiM0BWX_3KYQ" target="_blank" rel="noopener">Spotify<span class="arrow" aria-hidden="true">&rarr;</span></a>
       <a class="link" href="https://music.apple.com/us/album/in-and-of-place/6784346071" target="_blank" rel="noopener">Apple Music<span class="arrow" aria-hidden="true">&rarr;</span></a>
       <a class="link" href="https://tidal.com/album/536813512" target="_blank" rel="noopener">Tidal<span class="arrow" aria-hidden="true">&rarr;</span></a>
+      <a class="link" href="https://actualneighbors.bandcamp.com/album/in-and-of-place" target="_blank" rel="noopener">Bandcamp<span class="arrow" aria-hidden="true">&rarr;</span></a>
+      <a class="link" href="https://soundcloud.com/actualneighbors/sets/in-and-of-place" target="_blank" rel="noopener">SoundCloud<span class="arrow" aria-hidden="true">&rarr;</span></a>
+      <a class="link" href="https://www.qobuz.com/us-en/album/in-and-of-place-actual-neighbors/ejxiwsv85n8fo" target="_blank" rel="noopener">Qobuz<span class="arrow" aria-hidden="true">&rarr;</span></a>
     </div>
 
     <hr />
