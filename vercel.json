@@ -1,5 +1,26 @@
 {
   "buildCommand": "node build-config.js",
   "outputDirectory": ".",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/instexplorer",
+      "destination": "/instexplorer.zip"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/instexplorer",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/zip"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=\"Instrument Explorer.zip\""
+        }
+      ]
+    }
+  ]
 }
